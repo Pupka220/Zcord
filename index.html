@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>Zcord</title>
+<style>
+  :root { 
+    --bg: #0b0b0e; --sidebar1: rgba(23, 23, 28, 0.7); --sidebar2: rgba(30, 30, 36, 0.8); 
+    --chat-bg: #1e1f22; --text: #e3e3e6; --accent: #ed4245; --green: #23a55a; 
+    --input-bg: rgba(56, 58, 64, 0.6); --border: rgba(255, 255, 255, 0.05);
+    --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  }
+  body.light-theme {
+    --bg: #eef1f5; --sidebar1: rgba(255, 255, 255, 0.7); --sidebar2: rgba(245, 245, 250, 0.8); 
+    --chat-bg: #ffffff; --text: #1a1a1a; --input-bg: rgba(0, 0, 0, 0.05); 
+    --border: rgba(0, 0, 0, 0.1); --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  }
+  
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: radial-gradient(circle at top left, #1a1a24, #0b0b0e); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+  body.light-theme { background: radial-gradient(circle at top left, #ffffff, #eef1f5); }
+  
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+  button { transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.2s !important; }
+  button:active { transform: scale(0.92) !important; }
+  button:hover { transform: translateY(-2px); }
+
+  .member { animation: slideInLeft 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  @keyframes slideInLeft { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+
+  .status-dot { animation: pulseDot 2s infinite; }
+  @keyframes pulseDot {
+    0% { box-shadow: 0 0 0 0 rgba(35, 165, 90, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(35, 165, 90, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(35, 165, 90, 0); }
+  }
+
+  .sidebar { width: 280px; background: var(--sidebar2); backdrop-filter: blur(20px); display: flex; flex-direction: column; border-right: 1px solid var(--border); position: relative; z-index: 2; box-shadow: var(--shadow); }
+  .sidebar-header { padding: 20px; font-size: 20px; font-weight: 900; color: var(--text); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .logo-text { display: flex; align-items: center; gap: 10px; letter-spacing: 1px; }
+  .logo-star { color: var(--accent); font-size: 24px; filter: drop-shadow(0 0 10px var(--accent)); }
+  
+  .channels-list { padding: 16px; border-bottom: 1px solid var(--border); }
+  .channel-item { padding: 10px 14px; border-radius: 10px; cursor: pointer; color: #aaa; font-weight: 600; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+  .channel-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .channel-item.active { background: rgba(237, 66, 69, 0.15); color: var(--accent); border-left: 3px solid var(--accent); }
+
+  .members-list { flex: 1; padding: 16px; overflow-y: auto; }
+  .member { display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 12px; margin-bottom: 6px; transition: all 0.2s; cursor: pointer; border: 1px solid transparent; }
+  .member:hover { background: rgba(255, 255, 255, 0.05); border-color: var(--border); transform: translateY(-2px); }
+  
+  .avatar { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: white; flex-shrink: 0; overflow: hidden; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s, box-shadow 0.2s; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  /* УБРАНО .avatar.speaking - больше не мигает */
+  .member-info { display: flex; flex-direction: column; flex: 1; }
+  .member-name { font-weight: 600; font-size: 15px; color: var(--text); display: flex; align-items: center; gap: 6px; }
+  .member-status { font-size: 12px; color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+
+  .user-panel { padding: 16px; background: rgba(0,0,0,0.2); display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--border); backdrop-filter: blur(10px); }
+  .user-panel .avatar { width: 38px; height: 38px; }
+  .user-panel-info { flex: 1; overflow: hidden; cursor: pointer; }
+  .user-panel-name { font-weight: bold; font-size: 15px; white-space: nowrap; text-overflow: ellipsis; }
+  .user-panel-btn { background: transparent; color: #aaa; font-size: 22px; cursor: pointer; border: none; padding: 6px; border-radius: 8px; transition: 0.2s; }
+  .user-panel-btn:hover { color: var(--text); background: rgba(255,255,255,0.1); transform: rotate(90deg); }
+
+  .controls { padding: 16px; display: flex; gap: 8px; background: rgba(0,0,0,0.1); border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .controls button { flex: 1; min-width: 45px; padding: 12px 0; font-size: 18px; border-radius: 12px; border: 1px solid var(--border); cursor: pointer; font-weight: bold; color: white; transition: all 0.2s; background: rgba(255,255,255,0.05); }
+  .controls button:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+  .btn-mute.muted { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 15px rgba(237, 66, 69, 0.5); }
+  .btn-screen.active { background: var(--green); border-color: var(--green); box-shadow: 0 0 15px rgba(35, 165, 90, 0.5); }
+  .btn-music.active { background: #8a2be2; border-color: #8a2be2; box-shadow: 0 0 15px rgba(138, 43, 226, 0.5); }
+
+  .main { flex: 1; display: flex; flex-direction: column; background: var(--chat-bg); position: relative; height: 100vh; overflow: hidden; }
+  .main::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 15, 19, 0.85); z-index: 1; pointer-events: none; }
+  body.light-theme .main::before { background: rgba(249, 249, 249, 0.85); }
+  .chat-content { position: relative; z-index: 2; display: flex; flex-direction: column; height: 100%; }
+
+  .chat-header { padding: 16px 32px; background: rgba(30, 30, 36, 0.4); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-size: 16px; font-weight: 600; color: var(--text); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+  .slogan { color: #888; font-size: 13px; font-style: italic; font-weight: 400; margin-left: 12px;}
+
+  #chatBox { flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+  #messages { flex: 1; padding: 32px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
+  
+  .msg { display: flex; flex-direction: column; max-width: 75%; animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+  
+  .msg.self { align-self: flex-end; align-items: flex-end; }
+  .msg.other { align-self: flex-start; }
+  
+  .msg-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; padding: 0 4px; }
+  .msg-avatar { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; color:white; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+  .msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .msg-name { font-size: 14px; color: var(--text); font-weight: 600; }
+  .msg-time { font-size: 12px; color: #888; }
+  
+  .msg-text { background: var(--sidebar1); padding: 16px 20px; border-radius: 18px; border-top-left-radius: 4px; font-size: 16px; line-height: 1.5; word-break: break-word; color: var(--text); box-shadow: 0 4px 15px rgba(0,0,0,0.2); border: 1px solid var(--border); backdrop-filter: blur(10px); }
+  .msg.self .msg-text { background: var(--accent); border-top-left-radius: 18px; border-top-right-radius: 4px; color: white; border: none; box-shadow: 0 4px 15px rgba(237, 66, 69, 0.3); }
+  .msg-image { max-width: 100%; max-height: 350px; border-radius: 12px; margin-top: 8px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+
+  .reply-preview { font-size: 13px; color: #aaa; border-left: 3px solid var(--accent); padding-left: 10px; margin-bottom: 6px; background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 8px; }
+  
+  .msg-actions { position: absolute; right: -85px; top: 25px; display: flex; gap: 5px; opacity: 0; transition: opacity 0.2s; z-index: 10; }
+  .msg:hover .msg-actions { opacity: 1; }
+  .msg-action-btn { background: var(--sidebar2); border: 1px solid var(--border); color: var(--text); font-size: 14px; padding: 6px 10px; border-radius: 8px; cursor: pointer; backdrop-filter: blur(10px); }
+  .msg-action-btn:hover { background: rgba(255,255,255,0.1); }
+  
+  .chat-input-area { padding: 24px 32px; background: rgba(30, 30, 36, 0.4); backdrop-filter: blur(20px); display: flex; gap: 16px; align-items: center; border-top: 1px solid var(--border); }
+  #chatInput { flex: 1; background: var(--input-bg); border: 1px solid var(--border); padding: 16px 24px; border-radius: 16px; color: var(--text); font-size: 16px; outline: none; }
+  #sendBtn { background: var(--accent); color: white; width: 56px; height: 56px; border-radius: 16px; font-size: 24px; border:none; cursor:pointer; }
+  #imgBtn, #emojiBtn, #clearBtn { background: var(--input-bg); color: var(--text); width: 56px; height: 56px; border-radius: 16px; font-size: 22px; border: 1px solid var(--border); cursor:pointer; }
+
+  .emoji-picker { display: none; position: absolute; bottom: 100px; right: 100px; background: var(--sidebar2); backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 20px; padding: 20px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+  .emoji-picker span { font-size: 28px; cursor: pointer; padding: 8px; text-align: center; border-radius: 12px; }
+  .emoji-picker span:hover { background: rgba(255,255,255,0.1); }
+
+  .typing-indicator { position: absolute; bottom: 100px; left: 32px; font-size: 13px; color: #888; font-style: italic; }
+
+  .profile-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 2000; align-items: center; justify-content: center; }
+  .profile-modal-content { background: var(--sidebar1); backdrop-filter: blur(20px); padding: 40px; border-radius: 24px; width: 400px; text-align: center; position: relative; border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+  .profile-modal .avatar { width: 120px; height: 120px; margin: 0 auto 24px; font-size: 48px; }
+  .profile-modal input, .profile-modal textarea { width: 100%; padding: 16px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-size: 16px; margin-bottom: 20px; box-sizing: border-box; outline: none; resize: none; }
+  .profile-modal button { background: var(--accent); color: white; border: none; padding: 16px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 12px; font-size: 16px; }
+  .profile-modal button.secondary { background: rgba(255,255,255,0.1); color: var(--text); }
+  .close-profile { position: absolute; top: 20px; right: 20px; font-size: 32px; cursor: pointer; color: var(--text); }
+
+  #joinBox { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 24px; position: relative; z-index: 2; }
+  #joinBox h1 { color: var(--text); margin: 0; font-size: 48px; font-weight: 900; }
+  .join-slogan { color: var(--accent); font-size: 18px; margin-bottom: 40px; text-transform: uppercase; letter-spacing: 4px; font-weight: 800; }
+  input#name { background: var(--input-bg); color: var(--text); border: 1px solid var(--border); padding: 18px 24px; border-radius: 16px; font-size: 18px; width: 320px; outline: none; }
+  .avatar-preview { width: 120px; height: 120px; border-radius: 50%; background: var(--input-bg); border: 3px dashed rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 40px; color: #888; cursor: pointer; overflow: hidden; }
+  .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+  #avatarInput { display: none; }
+  #joinBtn { background: var(--accent); color: #fff; padding: 18px 32px; font-size: 18px; width: 360px; border:none; border-radius:16px; cursor:pointer; font-weight: bold; }
+
+  #gnomeSpeech { position: absolute; right: 90px; top: 0; background: var(--sidebar2); backdrop-filter: blur(10px); color: var(--text); padding: 16px 20px; border-radius: 20px; border-bottom-right-radius: 0; font-size: 15px; font-weight: 600; width: 260px; text-align: left; box-shadow: var(--shadow); opacity: 0; transform: translateX(10px); transition: all 0.3s; pointer-events: none; border: 2px solid var(--accent); z-index: 51; }
+</style>
+</head>
+<body>
+
+  <div class="sidebar" id="sidebarPanel" style="display:none;">
+    <div class="sidebar-header">
+      <div class="logo-text"><span class="logo-star">★</span> Zcord</div>
+      <div style="display:flex; gap:8px;">
+        <button class="theme-toggle" id="inviteBtn" title="Пригласить друга" style="background:transparent;border:none;color:var(--text);font-size:20px;cursor:pointer;">👤</button>
+        <button class="theme-toggle" id="themeToggle" title="Сменить тему" style="background:transparent;border:none;color:var(--text);font-size:20px;cursor:pointer;">🌙</button>
+      </div>
+    </div>
+    
+    <div class="channels-list" id="channelsList"></div>
+
+    <div class="members-list" id="members"></div>
+    
+    <div class="user-panel">
+      <div class="avatar" id="myAvatarPanel" style="background: var(--accent);">?</div>
+      <div class="user-panel-info" id="myProfileBtn">
+        <div class="user-panel-name" id="myNamePanel">Гость</div>
+      </div>
+      <button class="user-panel-btn" id="settingsBtn" title="Настройки звука">⚙️</button>
+    </div>
+    
+    <div class="controls" id="roomControls" style="display:none">
+      <button id="muteBtn">🔇</button>
+      <button id="screenBtn">🖥️</button>
+      <button id="musicBtn">🎵</button>
+      <button id="leaveBtn" style="font-size: 14px;">Выйти</button>
+    </div>
+
+    <div class="audio-modal" id="audioModal" style="display:none !important; position:absolute; bottom:90px; left:16px; width:250px; background:var(--sidebar2); border:1px solid var(--border); border-radius:20px; padding:24px; z-index:100; box-shadow: var(--shadow);">
+      <h3 style="margin:0 0 20px 0; font-size:16px; color:var(--text);">Настройки звука</h3>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; font-size:14px; color:#aaa;"><span>Микрофон</span><input type="range" id="micVolume" min="0" max="2" step="0.1" value="1.2"></div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; font-size:14px; color:#aaa;"><span>Друзья</span><input type="range" id="peerVolume" min="0" max="2" step="0.1" value="1"></div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; font-size:14px; color:#aaa;"><span>Шумодав</span><input type="checkbox" id="noiseSuppression" checked></div>
+      <button id="closeAudioBtn" style="width:100%; padding:12px; background:rgba(255,255,255,0.1); color:var(--text); border:none; border-radius:12px; cursor:pointer; font-weight:bold;">Закрыть</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="chat-content">
+      
+      <div id="updateModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); z-index: 3000; display: flex; align-items: center; justify-content: center;">
+        <div style="background: linear-gradient(135deg, #1e1f22 0%, #111214 100%); padding: 0; border-radius: 16px; width: 520px; text-align: left; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 40px rgba(237, 66, 69, 0.1); position: relative; overflow: hidden; animation: slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+          <div style="padding: 30px 40px; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05); position: relative;">
+            <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--accent); box-shadow: 0 0 15px var(--accent);"></div>
+            <h2 style="color: #fff; margin: 0 0 8px 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">Что нового в Zcord</h2>
+            <div style="display: flex; align-items: center; gap: 12px; font-size: 14px; color: #888;">
+              <span style="background: rgba(237, 66, 69, 0.15); color: var(--accent); padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 12px;">ВЕРСИЯ 2.4</span>
+              <span>Обновлено сегодня</span>
+            </div>
+          </div>
+          <div style="padding: 30px 40px; max-height: 60vh; overflow-y: auto;">
+            <div style="margin-bottom: 24px;">
+              <h3 style="color: #fff; font-size: 16px; font-weight: 700; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; background: #23a55a; border-radius: 50%; display: inline-block;"></span> Главные нововведения</h3>
+              <div style="color: #aaa; font-size: 14px; line-height: 1.6; padding-left: 16px; border-left: 2px solid rgba(255,255,255,0.05);">
+                <div style="margin-bottom: 8px;">• <b>Убраны системные сообщения:</b> больше не бесит, когда пишет "X зашел/вышел".</div>
+                <div style="margin-bottom: 8px;">• <b>Гномик стал жестче:</b> добавлено 50 новых злых фраз (теперь их 100!).</div>
+                <div style="margin-bottom: 8px;">• <b>Убрано свечение аватарки:</b> больше не мигает, когда ты говоришь.</div>
+              </div>
+            </div>
+          </div>
+          <div style="padding: 20px 40px 30px; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2);">
+            <button id="closeUpdateBtn" style="width: 100%; background: var(--accent); color: white; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(237, 66, 69, 0.3); transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">Понятно, погнали!</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="joinBox">
+        <h1>Zcord</h1>
+        <div class="join-slogan">Отечественная хуйня</div>
+        <div class="avatar-preview" id="avatarPreview" onclick="document.getElementById('avatarInput').click()">+</div>
+        <input type="file" id="avatarInput" accept="image/*" />
+        <input id="name" placeholder="Твой ник" maxlength="15" />
+        <button id="joinBtn">Войти в Zcord</button>
+      </div>
+
+      <div id="chatBox" style="display:none;">
+        <div class="chat-header">
+          <div><span style="color:var(--accent); font-size:20px;">#</span> <span id="currentChannel">общий</span> <span class="slogan">отечественная хуйня</span></div>
+        </div>
+        
+        <div id="messages"></div>
+        
+        <div class="typing-indicator" id="typingIndicator"></div>
+
+        <div class="chat-input-area">
+          <button id="clearBtn" title="Очистить чат" style="color: #ed4245;">🗑️</button>
+          <button id="imgBtn">📎</button>
+          <button id="emojiBtn">😀</button>
+          <input type="file" id="imageInput" accept="image/*" style="display:none;" />
+          <input id="chatInput" placeholder="Написать сообщение..." autocomplete="off" maxlength="500" />
+          <button id="sendBtn">➤</button>
+        </div>
+        
+        <div class="emoji-picker" id="emojiPicker" style="display:none;">
+          <span>😂</span><span>🔥</span><span>👍</span><span>💀</span><span>😭</span>
+          <span>❤️</span><span>🤣</span><span>😎</span><span>🖕</span><span>🤡</span>
+          <span>🍆</span><span>💩</span><span>🤔</span><span>😡</span><span>🥶</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="profile-modal" id="profileModal">
+      <div class="profile-modal-content">
+        <span class="close-profile" onclick="document.getElementById('profileModal').style.display='none'">&times;</span>
+        <div class="avatar" id="modalAvatar" style="background: var(--accent);">?</div>
+        <h2 id="modalName">Ник</h2>
+        <p id="modalBio" style="color:#888; font-size:15px; margin-bottom:30px;">О себе</p>
+        <button id="editProfileBtn" class="secondary">Редактировать профиль</button>
+      </div>
+    </div>
+
+    <div class="profile-modal" id="editProfileModal">
+      <div class="profile-modal-content">
+        <span class="close-profile" onclick="document.getElementById('editProfileModal').style.display='none'">&times;</span>
+        <h2>Редактировать профиль</h2>
+        <div class="avatar" id="editAvatarPreview" style="background: var(--accent); cursor:pointer; margin: 0 auto 30px;" onclick="document.getElementById('newAvatarInput').click()">?</div>
+        <input type="file" id="newAvatarInput" accept="image/*" style="display:none;" />
+        <input type="text" id="editNameInput" maxlength="15" placeholder="Новый ник" />
+        <textarea id="editBioInput" placeholder="О себе (коротко)" maxlength="50" rows="2"></textarea>
+        <button id="saveProfileBtn">Сохранить</button>
+      </div>
+    </div>
+
+    <div id="gnomeBox" style="position: absolute; right: 40px; bottom: 120px; z-index: 50; cursor: pointer;" onclick="gnomeClick()">
+      <div id="gnomeSpeech"></div>
+      <div style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--accent); background: var(--sidebar2); display: flex; align-items: center; justify-content: center; font-size: 42px; box-shadow: 0 0 30px rgba(237, 66, 69, 0.6);">🧙‍♂️</div>
+      <div style="font-size: 12px; color: #888; margin-top: 6px; font-weight: bold; text-align: center;">Гномик</div>
+    </div>
+
+    <div id="screenViewer">
+      <button id="closeScreen" onclick="closeScreen()">Закрыть</button>
+      <video id="remoteVideo" autoplay></video>
+    </div>
+  </div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const peers = new Map();
+let localStream = null, muted = false, myName = '', myAvatar = null, myBio = '', myStreak = 0;
+let isSharingScreen = false, isMusicSharing = false;
+let screenStream = null, musicStream = null;
+let replyingTo = null;
+let currentChannel = 'общий';
+const $ = (id) => document.getElementById(id);
+const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+
+$('closeUpdateBtn').onclick = () => {
+  $('updateModal').style.display = 'none';
+  localStorage.setItem('zcord_update_seen_v2.4', 'true'); 
+};
+if (localStorage.getItem('zcord_update_seen_v2.4') === 'true') {
+  $('updateModal').style.display = 'none';
+}
+
+function loadProfile() {
+  const saved = localStorage.getItem('zcord_profile');
+  if (saved) {
+    const profile = JSON.parse(saved);
+    if (profile.name) { $('name').value = profile.name; $('myNamePanel').textContent = profile.name; }
+    if (profile.avatar) { myAvatar = profile.avatar; $('avatarPreview').innerHTML = `<img src="${myAvatar}" />`; $('myAvatarPanel').innerHTML = `<img src="${myAvatar}" />`; }
+    if (profile.bio) myBio = profile.bio;
+  }
+  const savedMic = localStorage.getItem('zcord_micVol');
+  const savedPeer = localStorage.getItem('zcord_peerVol');
+  const savedNoise = localStorage.getItem('zcord_noise');
+  if (savedMic) $('micVolume').value = savedMic;
+  if (savedPeer) $('peerVolume').value = savedPeer;
+  if (savedNoise !== null) $('noiseSuppression').checked = savedNoise === 'true';
+}
+loadProfile();
+
+$('avatarInput').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => { myAvatar = ev.target.result; $('avatarPreview').innerHTML = `<img src="${myAvatar}" />`; $('myAvatarPanel').innerHTML = `<img src="${myAvatar}" />`; saveProfile(); };
+  reader.readAsDataURL(file);
+};
+
+$('name').oninput = saveProfile;
+function saveProfile() {
+  const name = $('name').value;
+  if (name) {
+    localStorage.setItem('zcord_profile', JSON.stringify({ name, avatar: myAvatar, bio: myBio }));
+    $('myNamePanel').textContent = name;
+  }
+}
+
+$('editProfileBtn').onclick = () => {
+  $('profileModal').style.display = 'none';
+  $('editProfileModal').style.display = 'flex';
+  $('editNameInput').value = myName;
+  $('editBioInput').value = myBio;
+  $('editAvatarPreview').innerHTML = myAvatar ? `<img src="${myAvatar}" />` : '?';
+};
+
+$('newAvatarInput').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    myAvatar = ev.target.result;
+    $('editAvatarPreview').innerHTML = `<img src="${myAvatar}" />`;
+    $('myAvatarPanel').innerHTML = `<img src="${myAvatar}" />`;
+  };
+  reader.readAsDataURL(file);
+};
+
+$('saveProfileBtn').onclick = () => {
+  const newName = $('editNameInput').value.trim();
+  const newBio = $('editBioInput').value.trim();
+  if (newName) {
+    myName = newName; myBio = newBio;
+    $('myNamePanel').textContent = newName;
+    saveProfile();
+    socket.emit('update-profile', { name: myName, avatar: myAvatar, bio: myBio });
+    $('editProfileModal').style.display = 'none';
+  }
+};
+
+$('settingsBtn').onclick = () => {
+  const modal = $('audioModal');
+  modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+};
+$('closeAudioBtn').onclick = () => { $('audioModal').style.display = 'none'; };
+$('micVolume').oninput = (e) => { localStorage.setItem('zcord_micVol', e.target.value); if(window.micGainNode) window.micGainNode.gain.value = parseFloat(e.target.value); };
+$('peerVolume').oninput = (e) => { localStorage.setItem('zcord_peerVol', e.target.value); peers.forEach(p => { if (p.audioEl) p.audioEl.volume = parseFloat(e.target.value); }); };
+$('noiseSuppression').onchange = (e) => { localStorage.setItem('zcord_noise', e.target.checked); if(window.noiseFilter) window.noiseFilter.frequency.value = e.target.checked ? 200 : 0; };
+
+$('themeToggle').onclick = () => {
+  document.body.classList.toggle('light-theme');
+  const isLight = document.body.classList.contains('light-theme');
+  $('themeToggle').textContent = isLight ? '☀️' : '🌙';
+  localStorage.setItem('zcord_theme', isLight ? 'light' : 'dark');
+};
+if (localStorage.getItem('zcord_theme') === 'light') { document.body.classList.add('light-theme'); $('themeToggle').textContent = '☀️'; }
+
+const emojiPicker = $('emojiPicker');
+$('emojiBtn').onclick = () => { emojiPicker.style.display = emojiPicker.style.display === 'grid' ? 'none' : 'grid'; };
+emojiPicker.querySelectorAll('span').forEach(span => {
+  span.onclick = () => { $('chatInput').value += span.textContent; emojiPicker.style.display = 'none'; $('chatInput').focus(); };
+});
+
+$('clearBtn').onclick = () => {
+  if (confirm('Очистить весь чат в этом канале?')) {
+    socket.emit('clear-chat', currentChannel);
+  }
+};
+
+function getAvatarColor(name) {
+  const colors = ['#5865f2', '#3ba55d', '#faa61a', '#ed4245', '#eb459e', '#9b59b6'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+function formatTime(timestamp) { return new Date(timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }); }
+
+function showProfile(name, avatar, bio, isSelf = false) {
+  $('modalName').textContent = name;
+  $('modalBio').textContent = bio || 'О себе';
+  $('modalAvatar').innerHTML = avatar ? `<img src="${avatar}" />` : name.charAt(0).toUpperCase();
+  $('modalAvatar').style.background = getAvatarColor(name);
+  $('editProfileBtn').style.display = isSelf ? 'block' : 'none';
+  $('profileModal').style.display = 'flex';
+}
+
+function renderMembers() {
+  const membersList = $('members');
+  membersList.innerHTML = '';
+  const me = { id: 'self', name: myName, avatar: myAvatar, bio: myBio, streak: myStreak, self: true };
+  const all = [me, ...[...peers.entries()].map(([id, p]) => ({ id, name: p.name, avatar: p.avatar, bio: p.bio, streak: p.streak }))];
+  
+  all.forEach(u => {
+    // УБРАЛИ isSpeaking - больше не мигает
+    const el = document.createElement('div');
+    el.className = 'member';
+    const avatarContent = u.avatar ? `<img src="${u.avatar}" />` : u.name.charAt(0).toUpperCase();
+    const streakHtml = u.streak ? `<span style="color: #ff6b35; font-weight: bold; font-size: 13px;">🔥${u.streak}</span>` : '';
+    el.innerHTML = `
+      <div class="avatar" style="background: ${getAvatarColor(u.name)}">${avatarContent}</div>
+      <div class="member-info">
+        <div class="member-name">${u.name}${u.self ? ' (ты)' : ''} ${streakHtml}</div>
+        <div class="member-status">${u.bio || (u.self ? (muted ? 'Микрофон выключен' : 'В сети') : 'В сети')}</div>
+      </div>
+    `;
+    el.onclick = () => showProfile(u.name, u.avatar, u.bio, u.self);
+    membersList.appendChild(el);
+  });
+}
+
+function appendMessage(msg) {
+  const isSelf = msg.name === myName;
+  const el = document.createElement('div');
+  el.className = `msg ${isSelf ? 'self' : 'other'}`;
+  el.id = `msg-${msg.id}`;
+  const avatarContent = msg.avatar ? `<img src="${msg.avatar}" />` : msg.name.charAt(0).toUpperCase();
+  
+  let replyHtml = '';
+  if (msg.replyTo) replyHtml = `<div class="reply-preview">Ответ на: ${msg.replyTo.text || 'Картинку'}</div>`;
+
+  let actionsHtml = '';
+  if (isSelf) {
+    actionsHtml = `<div class="msg-actions"><button class="msg-action-btn" onclick="replyTo('${msg.id}', '${msg.text}')">↩️</button><button class="msg-action-btn" onclick="deleteMessage('${msg.id}')">🗑️</button></div>`;
+  } else {
+    actionsHtml = `<div class="msg-actions"><button class="msg-action-btn" onclick="replyTo('${msg.id}', '${msg.text}')">↩️</button></div>`;
+  }
+
+  el.innerHTML = `
+    <div class="msg-header">
+      ${isSelf ? '' : `<div class="msg-avatar" style="background: ${getAvatarColor(msg.name)}">${avatarContent}</div>`}
+      <span class="msg-name">${msg.name}</span>
+      <span class="msg-time">${formatTime(msg.time || Date.now())}</span>
+    </div>
+    ${replyHtml}
+    <div class="msg-text">${msg.text || ''}</div>
+    ${msg.image ? `<img src="${msg.image}" class="msg-image" onclick="window.open(this.src)" />` : ''}
+    ${actionsHtml}
+  `;
+  $('messages').appendChild(el);
+  $('messages').scrollTop = $('messages').scrollHeight;
+}
+
+window.deleteMessage = (id) => { socket.emit('delete-message', { channel: currentChannel, msgId: id }); };
+window.replyTo = (id, text) => {
+  replyingTo = { id, text };
+  $('chatInput').placeholder = `Ответ на: ${text.substring(0, 20)}...`;
+  $('chatInput').focus();
+};
+
+function sendMessage() {
+  const text = $('chatInput').value.trim();
+  if (!text) return;
+  socket.emit('chat-message', { channel: currentChannel, text: text, replyTo: replyingTo });
+  $('chatInput').value = '';
+  $('chatInput').placeholder = 'Написать сообщение...';
+  replyingTo = null;
+}
+$('sendBtn').onclick = sendMessage;
+$('chatInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+let typingTimeout;
+$('chatInput').addEventListener('input', () => {
+  socket.emit('typing', true);
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => socket.emit('typing', false), 2000);
+});
+
+socket.on('user-typing', ({ name, isTyping }) => {
+  $('typingIndicator').textContent = isTyping ? `${name} печатает...` : '';
+});
+
+$('imgBtn').onclick = () => $('imageInput').click();
+$('imageInput').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 4 * 1024 * 1024) { alert('Максимум 4МБ!'); return; }
+  const reader = new FileReader();
+  reader.onload = (ev) => { socket.emit('chat-message', { channel: currentChannel, image: ev.target.result, replyTo: replyingTo }); $('imageInput').value = ''; };
+  reader.readAsDataURL(file);
+};
+
+$('joinBtn').onclick = async () => {
+  myName = $('name').value.trim() || 'Аноним';
+  try {
+    const rawStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = ctx.createMediaStreamSource(rawStream);
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -24; compressor.knee.value = 30; compressor.ratio.value = 12;
+    
+    window.micGainNode = ctx.createGain();
+    window.micGainNode.gain.value = parseFloat($('micVolume').value);
+    window.noiseFilter = ctx.createBiquadFilter();
+    window.noiseFilter.type = 'highpass';
+    window.noiseFilter.frequency.value = $('noiseSuppression').checked ? 200 : 0;
+    
+    const destination = ctx.createMediaStreamDestination();
+    source.connect(window.noiseFilter);
+    window.noiseFilter.connect(compressor);
+    compressor.connect(window.micGainNode);
+    window.micGainNode.connect(destination);
+    localStream = destination.stream;
+  } catch (err) { alert('Ошибка доступа к микрофону: ' + err.message); return; }
+
+  $('joinBox').style.display = 'none';
+  $('sidebarPanel').style.display = 'flex';
+  $('chatBox').style.display = 'flex';
+  $('roomControls').style.display = 'flex';
+  socket.emit('join', { name: myName, avatar: myAvatar, bio: myBio });
+};
+
+$('muteBtn').onclick = () => {
+  if (!localStream) return;
+  muted = !muted;
+  localStream.getAudioTracks().forEach(t => t.enabled = !muted);
+  $('muteBtn').textContent = muted ? '🔊' : '🔇';
+  $('muteBtn').className = muted ? 'btn-mute muted' : '';
+  renderMembers();
+};
+
+$('screenBtn').onclick = async () => {
+  if (isSharingScreen) {
+    if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+    screenStream = null; isSharingScreen = false;
+    $('screenBtn').classList.remove('active');
+    return;
+  }
+  try {
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    isSharingScreen = true; $('screenBtn').classList.add('active');
+    peers.forEach(peer => { peer.pc.addTrack(screenStream.getVideoTracks()[0], screenStream); });
+    screenStream.getVideoTracks()[0].onended = () => { $('screenBtn').click(); };
+  } catch (err) { console.error('Ошибка экрана:', err); }
+};
+
+$('musicBtn').onclick = async () => {
+  if (isMusicSharing) {
+    if (musicStream) musicStream.getTracks().forEach(t => t.stop());
+    musicStream = null; isMusicSharing = false;
+    $('musicBtn').classList.remove('active');
+    return;
+  }
+  try {
+    musicStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    const videoTrack = musicStream.getVideoTracks()[0]; if (videoTrack) videoTrack.stop(); 
+    isMusicSharing = true; $('musicBtn').classList.add('active');
+    peers.forEach(peer => { const a = musicStream.getAudioTracks()[0]; if (a) peer.pc.addTrack(a, musicStream); });
+    if (musicStream.getAudioTracks()[0]) { musicStream.getAudioTracks()[0].onended = () => { $('musicBtn').click(); }; }
+  } catch (err) { console.error('Ошибка музыки:', err); }
+};
+
+$('leaveBtn').onclick = () => location.reload();
+
+function createPeer(peerId, peerName, peerAvatar, peerBio, peerStreak, initiator) {
+  const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  const audioEl = new Audio();
+  audioEl.autoplay = true;
+  audioEl.volume = parseFloat($('peerVolume').value || 1);
+  const remoteVideo = $('remoteVideo');
+
+  pc.ontrack = (e) => { 
+    if (e.track.kind === 'video') { $('screenViewer').style.display = 'block'; remoteVideo.srcObject = e.streams[0]; }
+    else if (e.track.kind === 'audio') {
+      audioEl.srcObject = e.streams[0]; 
+      // УБРАЛИ АНАЛИЗАТОР ЗВУКА - больше не нужно отслеживать, кто говорит
+    }
+  };
+
+  pc.onicecandidate = (e) => { if (e.candidate) socket.emit('signal', { to: peerId, data: { candidate: e.candidate } }); };
+  if (initiator) {
+    pc.onnegotiationneeded = async () => {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit('signal', { to: peerId, data: { sdp: pc.localDescription } });
+    };
+  }
+
+  peers.set(peerId, { pc, audioEl, name: peerName, avatar: peerAvatar, bio: peerBio, streak: peerStreak });
+  renderMembers();
+  return pc;
+}
+
+window.closeScreen = () => {
+  $('screenViewer').style.display = 'none';
+  const remoteVideo = $('remoteVideo');
+  if (remoteVideo.srcObject) { remoteVideo.srcObject.getTracks().forEach(t => t.stop()); remoteVideo.srcObject = null; }
+};
+
+$('inviteBtn').onclick = () => {
+  const link = window.location.href;
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 1000; display: flex; align-items: center; justify-content: center;';
+  modal.innerHTML = `
+    <div style="background: rgba(30,30,36,0.9); backdrop-filter: blur(20px); padding: 48px; border-radius: 24px; width: 440px; text-align: center; border: 1px solid var(--border);">
+      <h2 style="color: var(--text); margin-top: 0; font-size: 28px; font-weight:900;">Пригласить друга</h2>
+      <input type="text" value="${link}" readonly style="width: 100%; padding: 16px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 12px; color: var(--green); font-size: 16px; margin-bottom: 30px; box-sizing: border-box; outline: none; text-align: center; font-weight: bold;" onclick="this.select()" />
+      <div style="display: flex; gap: 16px; justify-content: center;">
+        <button id="copyLinkBtn" style="background: var(--accent); color: white; border: none; padding: 14px 28px; border-radius: 12px; cursor: pointer; font-weight: bold;">Скопировать</button>
+        <button id="closeModalBtn" style="background: rgba(255,255,255,0.1); color: var(--text); border: none; padding: 14px 28px; border-radius: 12px; cursor: pointer;">Закрыть</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('#copyLinkBtn').onclick = () => {
+    modal.querySelector('input').select(); document.execCommand('copy');
+    modal.querySelector('#copyLinkBtn').textContent = 'Скопировано!'; modal.querySelector('#copyLinkBtn').style.background = 'var(--green)';
+    setTimeout(() => { modal.querySelector('#copyLinkBtn').textContent = 'Скопировать'; modal.querySelector('#copyLinkBtn').style.background = 'var(--accent)'; }, 2000);
+  };
+  modal.querySelector('#closeModalBtn').onclick = () => modal.remove();
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+};
+
+let gnomeTimeout;
+window.gnomeClick = () => {
+  const phrases = [
+    // Старые 50
+    "Играете в танки? Вы пидоры!!!", "Опять в дотан залипли? Хули вы там забыли.",
+    "Слышу, как ты там кнопки хуяришь, оставь мышку в покое.", "Гномик видел, как ты слился в последнем раунде. Позор.",
+    "Хули ты орешь, я не глухой, я маленький.", "Микрофон засунь в жопу, я тебя не слышу.",
+    "Шумодав включи, у тебя там кулеры ебашат как трактор.", "Дыхалку в микрофон убери, извращенец.",
+    "Ты чем там чавкаешь? Выключи микрофон, свинья.", "Гномик слышал, как ты пукнул. Не отпирайся.",
+    "Гномик живет в сервере, тут тепло и пахнет горелой проводкой.", "Если Layero упадет, гномик умрет. Не подведи его.",
+    "Я видел смерть. Она была в очереди на деплой.", "Когда ты выйдешь из канала, гномик будет плакать в одиночестве.",
+    "Гномик уже вырыл себе могилу, но она слишком маленькая.", "Твой друг — пидор, я это сразу понял.",
+    "Че ты там молчишь? Язык проглотил?", "Если тебе скучно, пойди потрогай траву, хуеплет.",
+    "Вы тут сидите уже два часа, а толку ноль.", "Гномик не хочет с вами дружить. Вы стрёмные.",
+    "Гномик съел твой мем. Он был невкусный.", "Хули ты на меня смотришь, я не твой папа.",
+    "Погладь гномика. Ну, погладь, хули ты.", "Гномик устал. Оставьте его в покое, уроды.",
+    "У гномика есть вторая работа в шахте, он устал.", "Твой пинг — это пиздец. Тебе на почту письма медленнее приходят.",
+    "Гномик переписал твой код, пока ты не видел. Он был ужасен.", "Слышу, как твой компьютер плачет от нагрузки.",
+    "Ты вообще в курсе, что мы в WebRTC? Хотя хули ты знаешь.", "Гномик знает, где ты живешь. И он придет.",
+    "Хуйня.", "Пиздец.", "Долбоеб.", "Все вы тут пидоры.", "Убейте меня.",
+    "В чем смысл твоего существования? Правильно, хуй знает.", "Гномик нашел смысл жизни, но забыл его в другой вкладке.",
+    "Мы все умрем, но сначала послушаем музыку.", "Не грусти, хуесос, все будет плохо.",
+    "Гномик тоже одинок, но он не ноет.", "Отечественная хуйня — это диагноз.", "Zcord сделан на коленке, но с душой.",
+    "Если что-то сломалось, это не баг, это фича.", "Гномик не любит новых людей. Уходи.",
+    "Кнопка 'Музыка' — это скам, не нажимай.", "Ты слышишь меня? Нет, это я тебя слышу.",
+    "Гномик видит твои страхи. Они смешные.", "Не пытайся понять гномика, просто прими его.",
+    "Я есть Гном.", "Ты не готов к тому, что я скажу. Поэтому я молчу.",
+    // Новые 50 (жестче)
+    "Ты тупой или притворяешься? Хотя хули я спрашиваю.",
+    "У тебя голос как у ебаного робота, купи микрофон.",
+    "Я бы тебя забанил, но мне лень.",
+    "Ты вообще когда-нибудь молчишь? Нет? Ну и пидор.",
+    "Гномик слышал, как ты дрочишь. Отвернись от микрофона.",
+    "Ты думаешь, что ты крутой? Ты просто хуй с горы.",
+    "У тебя мама знает, что ты такой дебил?",
+    "Я видел твою аватарку. Ты урод.",
+    "Не пиши мне больше. Никогда.",
+    "Ты жалок. И это факт.",
+    "Гномик хочет тебя убить. Но пока держится.",
+    "Ты самый тупой человек, которого я видел.",
+    "Хули ты тут сидишь? Иди работай, лох.",
+    "Твой друг тоже дебил, раз с тобой общается.",
+    "Я бы тебя скинул с моста, но мне лень.",
+    "Ты умираешь от скуки? Так и надо.",
+    "Гномик видел твои сообщения. Они ужасны.",
+    "Ты не умеешь общаться. Вообще.",
+    "Твоя жизнь — это ошибка.",
+    "Хули ты пришел сюда? Уходи.",
+    "Ты думаешь, что ты смешной? Нет, ты просто жалкий.",
+    "Гномик тебя ненавидит. Сильно.",
+    "Ты даже не представляешь, как ты бесишь.",
+    "Я бы тебя убил, но меня посадят.",
+    "Ты никчемный. Абсолютно.",
+    "Гномик видел, как ты плачешь. Позор.",
+    "Твои мемы — говно. Даже не пытайся.",
+    "Ты не человек. Ты просто кусок мяса.",
+    "Хули ты вообще здесь забыл?",
+    "Ты самый жалкий человек на свете.",
+    "Гномик хочет, чтобы ты сдох. Но не сегодня.",
+    "Ты никогда не найдешь друзей. Никогда.",
+    "Твой голос — это пытка. Заткнись.",
+    "Ты не умеешь писать. Иди в школу.",
+    "Гномик видел твои фото. Ты страшный.",
+    "Ты просто ошибка природы.",
+    "Хули ты такой тупой? Это наследственное?",
+    "Гномик тебя не переваривает. Вообще.",
+    "Ты самое худшее, что случалось с этим чатом.",
+    "Ты никогда не будешь счастлив. Запомни это.",
+    "Гномик видел, как ты ешь. Ты свинья.",
+    "Ты не заслуживаешь даже моего презрения.",
+    "Хули ты такой убогий?",
+    "Гномик хочет тебя задушить. Но подождет.",
+    "Ты просто пустое место.",
+    "Ты думаешь, что ты нужен? Нет.",
+    "Гномик видел твой поиск. Ты извращенец.",
+    "Ты никогда не изменишься. Ты просто дерьмо.",
+    "Хули ты тут торчишь? Иди нахуй.",
+    "Гномик тебя ненавидит. Но это взаимно."
+  ];
+  const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
+  const speechBubble = document.getElementById('gnomeSpeech');
+  speechBubble.textContent = randomPhrase;
+  speechBubble.style.opacity = '1'; speechBubble.style.transform = 'translateX(0)';
+  clearTimeout(gnomeTimeout);
+  gnomeTimeout = setTimeout(() => { speechBubble.style.opacity = '0'; speechBubble.style.transform = 'translateX(10px)'; }, 4000);
+};
+
+socket.on('channels', (channels) => {
+  const channelsList = $('channelsList');
+  channelsList.innerHTML = '<div style="font-size:12px; color:#888; font-weight:bold; margin-bottom:8px;">ТЕКСТОВЫЕ КАНАЛЫ</div>';
+  channels.forEach(ch => {
+    const el = document.createElement('div');
+    el.className = `channel-item ${ch === currentChannel ? 'active' : ''}`;
+    el.innerHTML = `<span>#</span> ${ch}`;
+    el.onclick = () => {
+      currentChannel = ch;
+      socket.emit('switch-channel', ch);
+      document.querySelectorAll('.channel-item').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      $('currentChannel').textContent = ch;
+    };
+    channelsList.appendChild(el);
+  });
+});
+
+socket.on('chat-history', ({ channel, messages }) => {
+  if (channel !== currentChannel) return;
+  $('messages').innerHTML = '';
+  messages.forEach(appendMessage);
+});
+
+socket.on('chat-cleared', () => {
+  $('messages').innerHTML = '';
+});
+
+socket.on('chat-message', (msg) => { if (msg.channel === currentChannel || !msg.channel) appendMessage(msg); });
+
+socket.on('message-deleted', (msgId) => {
+  const el = document.getElementById(`msg-${msgId}`);
+  if (el) el.remove();
+});
+
+socket.on('profile-updated', ({ id, name, avatar, bio }) => {
+  const p = peers.get(id);
+  if (p) { p.name = name; p.avatar = avatar; p.bio = bio; renderMembers(); }
+});
+
+socket.on('joined', ({ others, myStreak }) => {
+  window.myStreak = myStreak;
+  others.forEach(o => { if (!peers.has(o.id)) createPeer(o.id, o.name, o.avatar, o.bio, o.streak, true); });
+  renderMembers();
+});
+
+// УБРАЛИ socket.on('peer-joined') - больше не добавляем системные сообщения
+
+socket.on('signal', async ({ from, data }) => {
+  let peer = peers.get(from);
+  if (!peer) { createPeer(from, 'Пир', null, null, null, false); peer = peers.get(from); }
+  const pc = peer.pc;
+  if (data.sdp) {
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    if (data.sdp.type === 'offer') {
+      const answer = await pc.createAnswer(); await pc.setLocalDescription(answer);
+      socket.emit('signal', { to: from, data: { sdp: pc.localDescription } });
+    }
+  } else if (data.candidate) {
+    try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch (e) {}
+  }
+});
+
+// УБРАЛИ socket.on('peer-left') - больше не добавляем системные сообщения о выходе
+</script>
+</body>
+</html>
